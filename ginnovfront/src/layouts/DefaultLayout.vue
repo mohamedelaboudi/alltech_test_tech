@@ -1,10 +1,13 @@
 <script setup>
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppNavbar from '@/components/layout/AppNavbar.vue'
+import { useSidebar } from '@/composables/useSidebar'
+
+const { isOpen } = useSidebar()
 </script>
 
 <template>
-  <div class="layout">
+  <div class="layout" :class="{ 'sidebar-closed': !isOpen }">
     <!-- Sidebar -->
     <AppSidebar />
 
@@ -21,27 +24,39 @@ import AppNavbar from '@/components/layout/AppNavbar.vue'
 
 <style scoped>
 .layout {
+  --sidebar-offset: 240px;
+  --navbar-top: 0px;
+  --content-pad-top: 70px;
   min-height: 100vh;
   background-color: var(--bg-page);
-  display: flex;
+  display: block;
+  padding-left: var(--sidebar-offset);
+  transition: padding-left 0.3s ease;
+}
+
+.layout.sidebar-closed {
+  --sidebar-offset: 0px;
 }
 
 .main {
-  margin-left: 240px;
-  flex: 1;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
 .content {
-  padding-top: 70px;
+  padding-top: var(--content-pad-top);
   padding-left: 32px;
   padding-right: 32px;
   padding-bottom: 40px;
   flex: 1;
-  max-width: 1400px;
   width: 100%;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+  transition: padding-top 0.3s ease;
 }
 </style>

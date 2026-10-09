@@ -1,6 +1,7 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import CvPreviewModal from './CvPreviewModal.vue'
 import { formatSalary } from '@/models/employee'
 import { hasPermission } from '@/utils/authorization'
 import { useAlertStore } from '@/stores/alertStore'
@@ -22,12 +23,19 @@ const emit = defineEmits(['close', 'edit'])
 
 const alertStore = useAlertStore()
 const isGeneratingContract = ref(false)
+const isCvPreviewOpen = ref(false)
+
+const employeeFullName = computed(() => {
+  if (!props.employee) return ''
+  return `${props.employee.firstName || ''} ${props.employee.lastName || ''}`.trim()
+})
 
 watch(
   () => props.isOpen,
   (newVal) => {
     if (!newVal) {
       isGeneratingContract.value = false
+      isCvPreviewOpen.value = false
     }
   }
 )
@@ -173,14 +181,14 @@ const handleGenerateContract = async () => {
               <span class="cv-detail-name">Curriculum Vitae Document</span>
               <span class="cv-detail-sub">PDF/Document on file</span>
             </div>
-            <a
-              :href="employee.cvUrl"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               class="btn-view-cv-link"
+              :disabled="!employee.id"
+              @click="isCvPreviewOpen = true"
             >
-              View CV ↗
-            </a>
+              View CV
+            </button>
           </div>
           <span v-else class="detail-val cv-none">No CV uploaded</span>
         </div>
@@ -219,6 +227,13 @@ const handleGenerateContract = async () => {
       </button>
     </template>
   </BaseModal>
+
+  <CvPreviewModal
+    :is-open="isCvPreviewOpen"
+    :employee-id="employee?.id"
+    :employee-name="employeeFullName"
+    @close="isCvPreviewOpen = false"
+  />
 </template>
 
 <style scoped>
@@ -353,11 +368,17 @@ const handleGenerateContract = async () => {
   border: 1px solid var(--primary-border);
   border-radius: var(--radius-sm);
   text-decoration: none;
+  cursor: pointer;
   transition: var(--transition);
 }
 
-.btn-view-cv-link:hover {
+.btn-view-cv-link:hover:not(:disabled) {
   background-color: #dbeafe;
+}
+
+.btn-view-cv-link:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .cv-none {

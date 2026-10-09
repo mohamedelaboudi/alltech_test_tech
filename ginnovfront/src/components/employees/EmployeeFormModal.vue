@@ -130,9 +130,6 @@ const handleImmediateUploadPhoto = async () => {
   try {
     const updated = await employeeService.uploadPhoto(props.employee.id, photoFile.value)
     currentPhotoUrl.value = updated?.photoUrl || currentPhotoUrl.value
-    if (props.employee && updated?.photoUrl) {
-      props.employee.photoUrl = updated.photoUrl
-    }
     photoFile.value = null
     alertStore.showToast('Profile picture uploaded successfully.')
     await employeeStore.searchEmployees()
@@ -150,9 +147,6 @@ const handleImmediateUploadCv = async () => {
   try {
     const updated = await employeeService.uploadCv(props.employee.id, cvFile.value)
     currentCvUrl.value = updated?.cvUrl || currentCvUrl.value
-    if (props.employee && updated?.cvUrl) {
-      props.employee.cvUrl = updated.cvUrl
-    }
     cvFile.value = null
     alertStore.showToast('CV uploaded successfully.')
     await employeeStore.searchEmployees()
@@ -171,9 +165,6 @@ const handleConfirmDeletePhoto = async () => {
   try {
     await employeeService.deletePhoto(props.employee.id)
     currentPhotoUrl.value = ''
-    if (props.employee) {
-      props.employee.photoUrl = ''
-    }
     alertStore.showToast('Profile picture deleted successfully.')
     await employeeStore.searchEmployees()
     isConfirmDeletePhotoOpen.value = false
@@ -191,9 +182,6 @@ const handleConfirmDeleteCv = async () => {
   try {
     await employeeService.deleteCv(props.employee.id)
     currentCvUrl.value = ''
-    if (props.employee) {
-      props.employee.cvUrl = ''
-    }
     alertStore.showToast('CV deleted successfully.')
     await employeeStore.searchEmployees()
     isConfirmDeleteCvOpen.value = false
@@ -451,6 +439,8 @@ defineExpose({
         <!-- CV Document Upload Area -->
         <EmployeeCvUpload
           v-model="cvFile"
+          :employee-id="employee?.id"
+          :employee-name="employee ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() : ''"
           :current-cv-url="currentCvUrl"
           :is-uploading="isUploadingCv"
           :is-deleting="isDeletingCv"

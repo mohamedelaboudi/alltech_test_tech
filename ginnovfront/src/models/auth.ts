@@ -21,14 +21,14 @@ export interface LoginRequest {
 }
 
 /**
- * Login Response matching backend response structure
+ * Login Response matching backend response structure with HttpOnly cookies
  */
 export interface LoginResponse {
-  token: string
-  tokenType?: string
   email: string
   userType: UserType
   permissions: PermissionType[]
+  expiresIn: number
+  refreshExpiresIn?: number
 }
 
 /**

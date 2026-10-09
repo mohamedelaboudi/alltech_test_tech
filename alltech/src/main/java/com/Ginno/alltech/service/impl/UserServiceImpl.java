@@ -6,14 +6,17 @@ import com.Ginno.alltech.dto.user.UserResponse;
 import com.Ginno.alltech.dto.user.UserSearchRequest;
 import com.Ginno.alltech.entity.Permission;
 import com.Ginno.alltech.entity.User;
+import com.Ginno.alltech.enums.ActivityAction;
 import com.Ginno.alltech.exception.EmailAlreadyExistsException;
 import com.Ginno.alltech.exception.PermissionNotFoundException;
 import com.Ginno.alltech.exception.ResourceNotFoundException;
 import com.Ginno.alltech.mapper.UserMapper;
 import com.Ginno.alltech.repository.PermissionRepository;
 import com.Ginno.alltech.repository.UserRepository;
+import com.Ginno.alltech.service.ActivityEventPublisher;
 import com.Ginno.alltech.service.UserService;
 import com.Ginno.alltech.specification.UserSpecification;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,7 +30,6 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -36,8 +38,10 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final PermissionRepository permissionRepository;
+    private final ActivityEventPublisher activityEventPublisher;
 
     @Override
+    @Transactional
     public UserResponse create(CreateUserRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -65,7 +69,10 @@ public class UserServiceImpl implements UserService {
                     .map(permissionType ->
                             permissionRepository.findByName(permissionType)
                                     .orElseThrow(() ->
-                                            new PermissionNotFoundException("Permission not found: " + permissionType )
+                                            new PermissionNotFoundException(
+                                                    "Permission not found: "
+                                                            + permissionType
+                                            )
                                     )
                     )
                     .collect(Collectors.toSet());
@@ -75,6 +82,13 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
+        activityEventPublisher.publish(
+                ActivityAction.CREATE,
+                "User",
+                savedUser.getId(),
+                "User " + savedUser.getEmail() + " was created"
+        );
+
         return userMapper.toResponse(savedUser);
     }
 
@@ -83,7 +97,9 @@ public class UserServiceImpl implements UserService {
 
         User user = userRepository.findById(id)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found with id: " + id)
+                        new ResourceNotFoundException(
+                                "User not found with id: " + id
+                        )
                 );
 
         return userMapper.toResponse(user);
@@ -110,24 +126,37 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserResponse update(
             Long id,
             UpdateUserRequest request) {
 
-        User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        User user = userRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with id: " + id
+                        )
+                );
 
         if (request.getEmail() != null
                 && !user.getEmail().equals(request.getEmail())
                 && userRepository.existsByEmail(request.getEmail())) {
 
-            throw new EmailAlreadyExistsException("User already exists with email: " + request.getEmail());
+            throw new EmailAlreadyExistsException(
+                    "User already exists with email: "
+                            + request.getEmail()
+            );
         }
 
         userMapper.updateEntity(request, user);
 
         if (request.getPassword() != null
                 && !request.getPassword().trim().isEmpty()) {
-            user.setPassword(passwordEncoder.encode(request.getPassword().trim())
+
+            user.setPassword(
+                    passwordEncoder.encode(
+                            request.getPassword().trim()
+                    )
             );
         }
 
@@ -138,7 +167,10 @@ public class UserServiceImpl implements UserService {
                     .map(permissionType ->
                             permissionRepository.findByName(permissionType)
                                     .orElseThrow(() ->
-                                            new PermissionNotFoundException("Permission not found: " + permissionType)
+                                            new PermissionNotFoundException(
+                                                    "Permission not found: "
+                                                            + permissionType
+                                            )
                                     )
                     )
                     .collect(Collectors.toSet());
@@ -157,10 +189,18 @@ public class UserServiceImpl implements UserService {
 
         User updatedUser = userRepository.save(user);
 
+        activityEventPublisher.publish(
+                ActivityAction.UPDATE,
+                "User",
+                updatedUser.getId(),
+                "User " + updatedUser.getEmail() + " was updated"
+        );
+
         return userMapper.toResponse(updatedUser);
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
 
         User user = userRepository.findById(id)
@@ -170,6 +210,16 @@ public class UserServiceImpl implements UserService {
                         )
                 );
 
+        Long userId = user.getId();
+        String userEmail = user.getEmail();
+
         userRepository.delete(user);
+
+        activityEventPublisher.publish(
+                ActivityAction.DELETE,
+                "User",
+                userId,
+                "User " + userEmail + " was deleted"
+        );
     }
 }

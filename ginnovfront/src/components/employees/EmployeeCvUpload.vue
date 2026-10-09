@@ -1,11 +1,20 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { validateCvFile, formatFileSize } from '@/utils/fileValidation'
+import CvPreviewModal from './CvPreviewModal.vue'
 
 const props = defineProps({
   modelValue: {
     type: Object, // File
     default: null
+  },
+  employeeId: {
+    type: [Number, String],
+    default: null
+  },
+  employeeName: {
+    type: String,
+    default: ''
   },
   currentCvUrl: {
     type: String,
@@ -34,6 +43,7 @@ const emit = defineEmits(['update:modelValue', 'delete-existing', 'upload-now'])
 const fileInputRef = ref(null)
 const errorMessage = ref('')
 const isDragOver = ref(false)
+const isCvPreviewOpen = ref(false)
 
 const hasExistingCv = computed(() => {
   return Boolean(props.currentCvUrl && !props.modelValue)
@@ -42,6 +52,13 @@ const hasExistingCv = computed(() => {
 const hasPendingSelection = computed(() => {
   return Boolean(props.modelValue)
 })
+
+watch(
+  () => props.currentCvUrl,
+  (url) => {
+    if (!url) isCvPreviewOpen.value = false
+  }
+)
 
 const triggerFileInput = () => {
   if (props.disabled || props.isUploading || props.isDeleting) return
@@ -131,17 +148,16 @@ const handleDrop = (e) => {
           </div>
 
           <div class="cv-actions">
-            <!-- View CV in new tab -->
-            <a
-              :href="currentCvUrl"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               class="btn-subtle btn-view-cv"
-              title="View CV in new tab"
+              title="View CV"
+              :disabled="!employeeId"
+              @click="isCvPreviewOpen = true"
             >
               <span class="btn-icon-symbol">👁</span>
               View CV
-            </a>
+            </button>
 
             <!-- Replace CV -->
             <button
@@ -247,6 +263,13 @@ const handleDrop = (e) => {
         ⚠️ {{ errorMessage }}
       </div>
     </div>
+
+    <CvPreviewModal
+      :is-open="isCvPreviewOpen"
+      :employee-id="employeeId"
+      :employee-name="employeeName"
+      @close="isCvPreviewOpen = false"
+    />
   </div>
 </template>
 
@@ -420,8 +443,13 @@ const handleDrop = (e) => {
   border-color: #bae6fd;
 }
 
-.btn-view-cv:hover {
+.btn-view-cv:hover:not(:disabled) {
   background-color: #e0f2fe;
+}
+
+.btn-view-cv:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .btn-upload-now {

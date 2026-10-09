@@ -25,6 +25,7 @@ export const setRouter = (router: Router) => {
 
 const api: AxiosInstance = axios.create({
   baseURL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   },
@@ -32,14 +33,10 @@ const api: AxiosInstance = axios.create({
 })
 
 /**
- * Request interceptor: automatically attaches JWT Bearer token
+ * Request interceptor: ensures correct headers without leaking tokens into JS
  */
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('auth_token')
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
     // For FormData payloads, do not set application/json so browser sets multipart boundary
     if (typeof FormData !== 'undefined' && config.data instanceof FormData && config.headers) {
       delete config.headers['Content-Type']
@@ -50,33 +47,76 @@ api.interceptors.request.use(
 )
 
 /**
- * Response interceptor: centralized error handling for all API requests
+ * Response interceptor: centralized error handling and 401 token refresh retry
  */
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const apiError: ApiError = toApiError(error)
     const status = apiError.status
     const url = error.config?.url || ''
 
-    // 1. 401 Unauthorized: token missing, invalid, or expired
-    // Do NOT automatically redirect or clear session if this is an authentication/login request
+    // 1. 401 Unauthorized handling
     const isLoginRequest = url.includes('/login') || url.includes('auth/login')
+    const isRefreshRequest = url.includes('/refresh') || url.includes('auth/refresh')
+    const isLogoutRequest = url.includes('/logout') || url.includes('auth/logout')
 
-    if (status === 401 && !isLoginRequest) {
+    if (status === 401) {
+      // If login endpoint returns 401, reject so login form displays credentials error
+      if (isLoginRequest) {
+        return Promise.reject(apiError)
+      }
+
+      // Refresh/logout 401 is handled by the auth store to avoid duplicate logout.
+      // A retried request that still returns 401 means the new access cookie is not valid.
+      if (isRefreshRequest || isLogoutRequest) {
+        return Promise.reject(apiError)
+      }
+
+      if (error.config?._retry) {
+        try {
+          const authStore = useAuthStore()
+          if (authStore.isAuthenticated && !authStore.isRefreshing) {
+            authStore.handleSessionExpired()
+          }
+        } catch {
+          if (routerInstance && routerInstance.currentRoute.value.path !== '/login') {
+            routerInstance.push('/login')
+          }
+        }
+        return Promise.reject(apiError)
+      }
+
+      // Automatic fallback for expired access token: single-flight refresh and retry once
+      const originalRequest = error.config
+      originalRequest._retry = true
+
       try {
         const authStore = useAuthStore()
-        authStore.logout()
-      } catch {
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('auth_user')
+        // Concurrency-safe: awaits existing shared refresh promise if one is already in-flight
+        await authStore.refreshToken()
+        // Retry original request; browser automatically attaches refreshed HttpOnly cookies
+        return api(originalRequest)
+      } catch (refreshErr) {
+        return Promise.reject(toApiError(refreshErr))
       }
+    }
 
-      if (routerInstance && routerInstance.currentRoute.value.path !== '/login') {
-        routerInstance.push('/login')
-      } else if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+    // 2. 502 / 503 / 504: Bad Gateway or Service Unavailable
+    // Handled as temporary server/proxy infrastructure error, NOT user session invalidation
+    if (status === 502 || status === 503 || status === 504) {
+      try {
+        const alertStore = useAlertStore()
+        alertStore.showToast(
+          status === 502
+            ? 'Bad Gateway: Backend server is temporarily unreachable.'
+            : 'Server is temporarily unavailable. Please try again later.',
+          'error'
+        )
+      } catch {
+        // Fallback
       }
+      return Promise.reject(apiError)
     }
 
     // 2. 403 Forbidden: authenticated but lacks permission

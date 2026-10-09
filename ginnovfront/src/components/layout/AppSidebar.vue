@@ -1,10 +1,12 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useSidebar } from '@/composables/useSidebar'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { isOpen } = useSidebar()
 
 const isActive = (path) => {
   return route.path.startsWith(path)
@@ -25,7 +27,7 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <aside class="sidebar">
+  <aside id="app-sidebar" class="sidebar" :class="{ 'is-closed': !isOpen }">
     <div class="logo-area" @click="handleLogoClick">
       <div class="logo-icon">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -111,6 +113,13 @@ const handleLogout = () => {
   flex-direction: column;
   z-index: 1000;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+  transform: translateX(0);
+  transition: transform 0.3s ease;
+}
+
+.sidebar.is-closed {
+  transform: translateX(-100%);
+  pointer-events: none;
 }
 
 .logo-area {

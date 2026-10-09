@@ -49,7 +49,6 @@ const handleReset = async () => {
   <div class="search-form-card">
     <div class="search-card-header">
       <div class="search-header-title">
-        <span class="search-title-icon">🔍</span>
         <h3 class="search-title">User Search</h3>
       </div>
       <span class="search-subtitle">Filter users across system credentials</span>
@@ -134,7 +133,6 @@ const handleReset = async () => {
           :disabled="userStore.loading"
         >
           <span v-if="userStore.loading" class="spinner-sm"></span>
-          <span v-else class="btn-icon">🔍</span>
           <span>{{ userStore.loading ? 'Searching...' : 'Search' }}</span>
         </button>
       </div>

@@ -137,7 +137,8 @@ export const employeeService = {
    */
   async getCv(id: number | string): Promise<Blob> {
     const response = await api.get<Blob>(`${BASE_URL}/${id}/cv`, {
-      responseType: 'blob'
+      responseType: 'blob',
+      timeout: 60000
     })
     return response.data
   },

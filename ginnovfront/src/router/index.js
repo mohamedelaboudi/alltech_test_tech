@@ -57,13 +57,13 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   // Set document title
   document.title = to.meta.title ? `${to.meta.title} - AllTech` : 'AllTech Management'
 
   const authStore = useAuthStore()
   if (!authStore.isInitialized) {
-    authStore.initializeAuth()
+    await authStore.initializeAuth()
   }
 
   const isAuthenticated = authStore.isAuthenticated

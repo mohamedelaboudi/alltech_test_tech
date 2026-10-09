@@ -17,7 +17,7 @@ setRouter(router)
 
 // Restore auth state before mounting router
 const authStore = useAuthStore()
-authStore.initializeAuth()
+await authStore.initializeAuth()
 
 app.use(router)
 

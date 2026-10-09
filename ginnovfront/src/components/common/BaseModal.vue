@@ -17,6 +17,18 @@ const props = defineProps({
   maxWidth: {
     type: String,
     default: '540px'
+  },
+  zIndex: {
+    type: [Number, String],
+    default: 1050
+  },
+  trapEscape: {
+    type: Boolean,
+    default: false
+  },
+  flushBody: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -24,23 +36,31 @@ const emit = defineEmits(['close'])
 
 const handleKeyDown = (e) => {
   if (e.key === 'Escape' && props.isOpen) {
+    if (props.trapEscape) {
+      e.stopPropagation()
+    }
     emit('close')
   }
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown)
+  window.addEventListener('keydown', handleKeyDown, props.trapEscape)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('keydown', handleKeyDown, props.trapEscape)
 })
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="isOpen" class="modal-overlay" @click.self="emit('close')">
+      <div
+        v-if="isOpen"
+        class="modal-overlay"
+        :style="{ zIndex }"
+        @click.self="emit('close')"
+      >
         <div class="modal-card" :style="{ maxWidth }">
           <div class="modal-header">
             <div>
@@ -60,7 +80,7 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <div class="modal-body">
+          <div class="modal-body" :class="{ 'modal-body-flush': flushBody }">
             <slot></slot>
           </div>
 
@@ -142,6 +162,15 @@ onUnmounted(() => {
 .modal-body {
   padding: 24px;
   overflow-y: auto;
+}
+
+.modal-body-flush {
+  padding: 0;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-footer {

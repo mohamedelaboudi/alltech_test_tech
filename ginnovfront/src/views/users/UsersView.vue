@@ -215,6 +215,9 @@ const handleDeleteConfirm = async () => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .page-header {

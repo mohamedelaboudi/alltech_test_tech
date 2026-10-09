@@ -2,6 +2,7 @@ package com.Ginno.alltech.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +15,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+
 @Component
 @RequiredArgsConstructor
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class JwtAuthenticationFilter
+        extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+
     private final UserDetailsService userDetailsService;
 
     @Override
@@ -28,29 +32,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
+        String token =
+                extractAccessToken(request);
 
-        if (authHeader == null ||
-                !authHeader.startsWith("Bearer ")) {
-
-            filterChain.doFilter(request, response);
+        if (token == null) {
+            filterChain.doFilter(
+                    request,
+                    response
+            );
             return;
         }
 
-        String token = authHeader.substring(7);
-
         try {
 
-            String username = jwtService.extractUsername(token);
+            String username =
+                    jwtService.extractUsername(token);
 
             if (username != null &&
-                    SecurityContextHolder.getContext()
+                    SecurityContextHolder
+                            .getContext()
                             .getAuthentication() == null) {
 
                 UserDetails userDetails =
-                        userDetailsService.loadUserByUsername(username);
+                        userDetailsService
+                                .loadUserByUsername(username);
 
-                if (jwtService.isTokenValid(token, userDetails)) {
+                if (jwtService.isTokenValid(
+                        token,
+                        userDetails
+                )) {
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
@@ -64,15 +74,44 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     .buildDetails(request)
                     );
 
-                    SecurityContextHolder.getContext()
-                            .setAuthentication(authentication);
+                    SecurityContextHolder
+                            .getContext()
+                            .setAuthentication(
+                                    authentication
+                            );
                 }
             }
 
         } catch (Exception ignored) {
-            // Invalid JWT → request remains unauthenticated
+            // Invalid or expired JWT.
+            // Request remains unauthenticated.
         }
 
-        filterChain.doFilter(request, response);
+        filterChain.doFilter(
+                request,
+                response
+        );
+    }
+
+
+    private String extractAccessToken(
+            HttpServletRequest request
+    ) {
+
+        if (request.getCookies() == null) {
+            return null;
+        }
+
+        for (Cookie cookie :
+                request.getCookies()) {
+
+            if ("access_token"
+                    .equals(cookie.getName())) {
+
+                return cookie.getValue();
+            }
+        }
+
+        return null;
     }
 }

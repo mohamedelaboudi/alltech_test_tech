@@ -80,6 +80,13 @@ function getDefaultMessageForStatus(status: number): string {
     case 409:
       return 'A conflict occurred with an existing resource.'
     case 500:
+      return 'An unexpected error occurred. Please try again later.'
+    case 502:
+      return 'Bad gateway: The backend service is temporarily unreachable.'
+    case 503:
+      return 'Service temporarily unavailable. Please try again later.'
+    case 504:
+      return 'Gateway timeout: The server took too long to respond.'
     default:
       return 'An unexpected error occurred. Please try again later.'
   }
